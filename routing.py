@@ -5,78 +5,18 @@ from shapely.geometry import Point
 from shapely.ops import linemerge
 
 
-NETWORK_TYPES = {
-    "Drive": "drive",
-    "Bike": "bike",
-    "Walk": "walk",
-    0: "drive",
-    1: "bike",
-    2: "walk",
-}
-
 TRANSPORT_MODES = {
-    0: "Drive",
-    1: "Bike",
-    2: "Walk",
-    "Drive": "Drive",
-    "Bike": "Bike",
-    "Walk": "Walk",
+    0: "drive", 1: "bike", 2: "walk",
+    "Drive": "drive", "Bike": "bike", "Walk": "walk",
 }
 
-MODE_SPEED_KMH = {
-    "Drive": 45,
-    "Bike": 15,
-    "Walk": 5,
-}
+MODE_SPEEDS_KMH = {"drive": 45, "bike": 15, "walk": 5}
 
 ALLOWED_HIGHWAYS = {
-    "Drive": {
-        "motorway",
-        "motorway_link",
-        "trunk",
-        "trunk_link",
-        "primary",
-        "primary_link",
-        "secondary",
-        "secondary_link",
-        "tertiary",
-        "tertiary_link",
-        "unclassified",
-        "residential",
-        "living_street",
-        "service",
-    },
-    "Bike": {
-        "cycleway",
-        "path",
-        "living_street",
-        "residential",
-        "service",
-        "unclassified",
-        "tertiary",
-        "tertiary_link",
-        "secondary",
-        "secondary_link",
-    },
-    "Walk": {
-        "footway",
-        "pedestrian",
-        "steps",
-        "path",
-        "track",
-        "cycleway",
-        "living_street",
-        "residential",
-        "service",
-        "unclassified",
-        "tertiary",
-        "tertiary_link",
-    },
+    "drive": {"motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary", "secondary_link", "tertiary", "tertiary_link", "unclassified", "residential", "living_street", "service"},
+    "bike": {"cycleway", "path", "living_street", "residential", "service", "unclassified", "tertiary", "tertiary_link", "secondary", "secondary_link"},
+    "walk": {"footway", "pedestrian", "steps", "path", "track", "cycleway", "living_street", "residential", "service", "unclassified", "tertiary", "tertiary_link"},
 }
-
-def get_transport_label(transport_mode):
-    return TRANSPORT_MODES.get(transport_mode, "Walk")
-
 
 def normalize_highway_values(value):
     if isinstance(value, list):
@@ -84,62 +24,49 @@ def normalize_highway_values(value):
 
     if value is None:
         return set()
-
     return {str(value)}
 
 def highway_allowed(value, transport_mode):
-    transport_mode = get_transport_label(transport_mode)
+    transport_mode = TRANSPORT_MODES[transport_mode]
     allowed = ALLOWED_HIGHWAYS[transport_mode]
     return bool(normalize_highway_values(value) & allowed)
 
 def filter_graph_by_highway(graph, transport_mode):
     filtered_graph = graph.copy()
-    edges_to_remove = [
-        (u, v, key)
-        for u, v, key, data in filtered_graph.edges(keys=True, data=True)
-        if not highway_allowed(data.get("highway"), transport_mode)
-    ]
+    edges_to_remove = [(u, v, key) for u, v, key, data in filtered_graph.edges(keys=True, data=True) 
+                       if not highway_allowed(data.get("highway"), transport_mode)
+                    ]
 
     filtered_graph.remove_edges_from(edges_to_remove)
     filtered_graph.remove_nodes_from(list(nx.isolates(filtered_graph)))
-
     return filtered_graph
 
 @st.cache_resource
 def get_city_graph(city, transport_mode):
-    network_type = NETWORK_TYPES.get(transport_mode, "walk")
+    network_type = TRANSPORT_MODES[transport_mode]
     graph = ox.graph.graph_from_place(city, network_type=network_type)
     return filter_graph_by_highway(graph, transport_mode)
 
-
-def get_selected_grid(grid, grid_ids):
+def get_selected_grids(grid, grid_ids):
     if not grid_ids:
         return grid.iloc[0:0].copy()
 
     return grid[grid["grid_id"].isin(grid_ids)].copy()
 
-
 def find_closest_safety_grid(grid, safety_grid_ids, user_location):
-    safety_grid = get_selected_grid(grid, safety_grid_ids)
+    safety_grid = get_selected_grids(grid, safety_grid_ids)
 
     if safety_grid.empty:
         return None
 
-    safety_grid_projected = safety_grid.to_crs("EPSG:3857").copy()
+    projected_safety_grid = safety_grid.to_crs("EPSG:3857").copy()
     user_point = Point(user_location[1], user_location[0])
-    user_point_projected = (
-        ox.projection.project_geometry(
-            user_point,
-            crs="EPSG:4326",
-            to_crs="EPSG:3857",
-        )[0]
-    )
+    projected_user_point = (ox.projection.project_geometry(user_point, crs="EPSG:4326", to_crs="EPSG:3857")[0])
 
-    distances = safety_grid_projected.geometry.centroid.distance(user_point_projected)
+    distances = projected_safety_grid.geometry.centroid.distance(projected_user_point)
     return safety_grid.loc[distances.idxmin()]
 
-
-def remove_hazard_elements(graph, hazard_grid):
+def remove_hazard_roads(graph, hazard_grid):
     if hazard_grid.empty:
         return graph.copy()
 
@@ -147,21 +74,13 @@ def remove_hazard_elements(graph, hazard_grid):
     hazard_projected = hazard_grid.to_crs(graph.graph["crs"])
     nodes, edges = ox.graph_to_gdfs(safe_graph)
 
-    nodes_in_hazard = nodes.sjoin(
-        hazard_projected,
-        how="inner",
-        predicate="intersects",
-    )
-    edges_in_hazard = edges.sjoin(
-        hazard_projected,
-        how="inner",
-        predicate="intersects",
-    )
+    nodes_in_hazard = nodes.sjoin(hazard_projected, how="inner", predicate="intersects",)
+    edges_in_hazard = edges.sjoin(hazard_projected, how="inner", predicate="intersects")
 
     safe_graph.remove_nodes_from(nodes_in_hazard.index)
     safe_graph.remove_edges_from(edges_in_hazard.index)
     safe_graph.remove_nodes_from(list(nx.isolates(safe_graph)))
-
+    
     return safe_graph
 
 
@@ -184,8 +103,7 @@ def prepare_route_segments(route_gdf):
 
     merged = (
         route.groupby("street_name", sort=False)
-        .agg(
-            length=("length", "sum"),
+        .agg(length=("length", "sum"),
             street_length_m=("street_length_m", "sum"),
             segment_order=("segment_order", "min"),
             geometry=("geometry", merge_geometries),
@@ -264,8 +182,8 @@ def build_routes(city, grid, hazard_grid_ids, safety_grid_ids, user_location, tr
     except (nx.NetworkXNoPath, nx.NodeNotFound, ValueError):
         shortest_route = None
 
-    hazard_grid = get_selected_grid(grid, hazard_grid_ids)
-    safe_graph = remove_hazard_elements(graph, hazard_grid)
+    hazard_grid = get_selected_grids(grid, hazard_grid_ids)
+    safe_graph = remove_hazard_roads(graph, hazard_grid)
 
     try:
         recommended_route = route_to_gdf(safe_graph, user_location, destination_location)
@@ -293,7 +211,7 @@ def estimated_time_minutes(route_gdf, transport_mode):
     if length_m is None:
         return None
 
-    speed_kmh = MODE_SPEED_KMH[get_transport_label(transport_mode)]
+    speed_kmh = MODE_SPEEDS_KMH[TRANSPORT_MODES[transport_mode]]
     return (length_m / 1000) / speed_kmh * 60
 
 

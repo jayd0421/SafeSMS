@@ -5,5 +5,6 @@ cache/
 .streamlit/
 .env
 .venv/
+.vscode/
 venv/
 env/

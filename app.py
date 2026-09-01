@@ -226,7 +226,7 @@ with sender_tab:
             
             if grid_selection_mode == "User defined":
                 
-                st.dataframe(city_map.get_city_grid())
+                # st.dataframe(city_map.get_city_grid())
                 mp.process_grid_click(
                     map_data,
                     grid_type,
