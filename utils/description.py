@@ -87,7 +87,7 @@ HOME_STORY_PRIMARY = """
 
 <p class="safesms-body">
     SafeSMS is a prototype of what could later become a mobile phone application. Building a fully
-    featured phone app can take time, so this version explores the core idea first: people would already
+    featured phone app can take time, so this version explores the core idea first where people would already
     have the app installed, with key map layers downloaded ahead of time, including the <strong>city
     boundary</strong>, <strong>grid system</strong>, <strong>road network</strong>, and <strong>basemap</strong>.
 </p>
@@ -110,10 +110,9 @@ HOME_STORY_SECONDARY = """
 <p class="safesms-body">
     This prototype was created by <strong><a href="https://www.linkedin.com/in/jedidiah-chibinga">Jedidiah Chibinga</a></strong>,
     <strong><a href="#">Timotej Gabrijan</a></strong>, and <strong><a href="#">Manuel Kreitmair</a></strong> as a proof of
-    concept for <span class="safesms-accent">low-bandwidth emergency navigation</span>. The idea is not to
-    replace official emergency services, but to explore how communities, responders, and local coordinators
+    concept for <span class="safesms-accent">low-bandwidth emergency navigation</span>. The idea is to explore how communities, responders, and local coordinators
     could share useful spatial information through one of the most resilient communication channels we still
-    have: <span class="safesms-warning">text messaging</span>.
+    have that is <span class="safesms-warning">text messaging</span>.
 </p>
 """
 
