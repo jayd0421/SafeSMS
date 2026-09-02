@@ -14,8 +14,8 @@ MODE_SPEEDS_KMH = {"drive": 45, "bike": 15, "walk": 5}
 
 ALLOWED_HIGHWAYS = {
     "drive": {"motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary", "secondary_link", "tertiary", "tertiary_link", "unclassified", "residential", "living_street", "service"},
-    "bike": {"cycleway", "path", "living_street", "residential", "service", "unclassified", "tertiary", "tertiary_link", "secondary", "secondary_link"},
-    "walk": {"footway", "pedestrian", "steps", "path", "track", "cycleway", "living_street", "residential", "service", "unclassified", "tertiary", "tertiary_link"},
+    "bike": {"cycleway", "path", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary", "secondary_link", "tertiary", "tertiary_link", "unclassified", "residential", "living_street", "service"},
+    "walk": {"footway", "pedestrian", "steps", "track", "cycleway", "path", "motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link", "secondary", "secondary_link", "tertiary", "tertiary_link", "unclassified", "residential", "living_street", "service"},
 }
 
 def normalize_highway_values(value):
