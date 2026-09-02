@@ -21,6 +21,54 @@ def show_optional_image(image_path, fallback_html, caption=None):
         st.markdown(fallback_html, unsafe_allow_html=True)
 
 
+def is_offline_simulation():
+    return st.session_state.app_mode == "Offline simulation"
+
+
+def offline_config_key(city, grid_size):
+    return f"{city}|{grid_size}"
+
+
+def reset_offline_preparation():
+    st.session_state.offline_layers_prepared = False
+    st.session_state.offline_prepared_config = None
+    st.session_state.offline_layer_status = {
+        "City boundary": False,
+        "Grid system": False,
+        "Road network": False,
+        "Basemap / tiles": False,
+    }
+
+
+def prepare_offline_layers(city, grid_size):
+    boundary, grid = v.get_city_grid(city, grid_size)
+    road_network = v.get_city_road_network(city)
+
+    st.session_state.offline_layer_status = {
+        "City boundary": not boundary.empty,
+        "Grid system": not grid.empty,
+        "Road network": not road_network.empty,
+        "Basemap / tiles": True,
+    }
+    st.session_state.offline_layers_prepared = all(
+        st.session_state.offline_layer_status.values()
+    )
+    st.session_state.offline_prepared_config = offline_config_key(city, grid_size)
+
+
+def render_layer_status():
+    for label, ready in st.session_state.offline_layer_status.items():
+        state = "ready" if ready else "pending"
+        st.markdown(f"- **{label}:** {state}")
+
+
+def render_mode_status():
+    if is_offline_simulation():
+        st.info("Offline simulation: using prepared local layers + SMS update.")
+    else:
+        st.info("Online demo mode: live map services may be used during the workflow.")
+
+
 st.set_page_config(page_title="Safe SMS",layout="wide")
 
 st.title("Safe SMS")
@@ -35,7 +83,16 @@ DEFAULT_STATE = {
     "user_location": None,
     "grid_type": "Hazard",
     "transport_mode": 0,
-    "last_selected_grid": None
+    "last_selected_grid": None,
+    "app_mode": "Online demo",
+    "offline_layers_prepared": False,
+    "offline_prepared_config": None,
+    "offline_layer_status": {
+        "City boundary": False,
+        "Grid system": False,
+        "Road network": False,
+        "Basemap / tiles": False,
+    },
 }
 
 for key, value in DEFAULT_STATE.items():
@@ -112,6 +169,18 @@ if st.session_state.page == "prep":
         with st.container(border=True, height=600):
             city = st.text_input("City", value="Salzburg, Austria")
             st.session_state.city = city
+
+            selected_app_mode = st.radio(
+                "App mode",
+                options=["Online demo", "Offline simulation"],
+                index=0 if st.session_state.app_mode == "Online demo" else 1,
+                horizontal=True,
+                help="Online demo uses the current Streamlit workflow. Offline simulation prepares layers first, then uses SMS updates in later pages.",
+            )
+
+            if selected_app_mode != st.session_state.app_mode:
+                st.session_state.app_mode = selected_app_mode
+                reset_offline_preparation()
             
             boundary = v.get_city_boundaries(city)
 
@@ -128,7 +197,35 @@ if st.session_state.page == "prep":
 
             st.session_state.grid_size = grid_size
 
-            st.info("Clicking next will begin preparing the layers for offline use.")
+            current_config = offline_config_key(city, grid_size)
+            if (
+                st.session_state.offline_prepared_config is not None
+                and st.session_state.offline_prepared_config != current_config
+            ):
+                reset_offline_preparation()
+
+            if is_offline_simulation():
+                st.info(
+                    "Offline simulation prepares the layers that a future mobile app "
+                    "would store locally before mobile data becomes unavailable."
+                )
+
+                if st.button("Prepare offline simulation layers", type="primary", width="stretch"):
+                    with st.spinner("Preparing boundary, grid, road network, and simulated basemap context..."):
+                        prepare_offline_layers(city, grid_size)
+
+                render_layer_status()
+
+                if st.session_state.offline_layers_prepared:
+                    st.success("Offline simulation layers are ready for the sender and recipient workflow.")
+                else:
+                    st.warning("Prepare the offline simulation layers before continuing.")
+
+            else:
+                st.info(
+                    "Online demo mode keeps the current workflow and may use live map "
+                    "services while the app is running."
+                )
             
             st.write("")
             prev_col, next_col = st.columns([4, 1])
@@ -139,7 +236,8 @@ if st.session_state.page == "prep":
                     st.rerun()
                     
             with next_col:
-                if st.button("---→", type='primary', key='b5'):
+                block_next = is_offline_simulation() and not st.session_state.offline_layers_prepared
+                if st.button("---→", type='primary', key='b5', disabled=block_next):
                     st.session_state.page = "sender"
                     st.rerun()
 
@@ -160,6 +258,8 @@ if st.session_state.page == "sender":
 
     with input_col:
         with st.container(border=True, height = 600):
+            render_mode_status()
+
             city = st.session_state.city
             
             st.code(city, language="python", height=45)
@@ -264,6 +364,8 @@ if st.session_state.page == "receiver":
 
     with input_col:
         with st.container(border=True, height=600):
+            render_mode_status()
+
             st.code(st.session_state.city, language="python", height=45)
 
             sms_payload = st.text_area("Paste SMS Code", value=None, height=120)
