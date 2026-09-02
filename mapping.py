@@ -261,7 +261,7 @@ class City:
             returned_objects = ["last_active_drawing", "last_clicked", "bounds", "zoom"]
 
         return st_folium(
-            self.m, height=620,
+            self.m, height=560,
             use_container_width=True,
             key=self.key,
             returned_objects=returned_objects,
@@ -306,49 +306,54 @@ def process_grid_click(map_data, grid_type):
 
     toggle_grid(grid_id, grid_type)
 
-
-def autogenerate_selected_grids(no_hazard_zones, no_safety_zones, grid, hazard_cluster_size=5):
+def autogenerate_selected_grids(no_hazard_zones,no_safety_zones,grid,hazard_cluster_size=5,min_boundary_distance=500):
     grid = grid.copy()
 
     total_required = no_hazard_zones + no_safety_zones
 
     if total_required > len(grid):
-        raise ValueError("The number of hazard and safety zones cannot exceed the number of grids.")
+        raise ValueError(
+            "The number of hazard and safety zones cannot exceed "
+            "the number of grids."
+        )
 
     projected = grid.to_crs("EPSG:3857")
+
     centroids = projected.geometry.centroid
 
     city_boundary = projected.geometry.union_all().boundary
 
+    # Distance of each grid cell from the city boundary, in metres
     boundary_distance = projected.geometry.distance(city_boundary)
 
     indices = list(projected.index)
 
+    # Find grids far enough from the boundary
+    interior_candidates = [
+        i for i in indices
+        if boundary_distance.loc[i] >= min_boundary_distance
+    ]
+
+    # We require enough interior grids for ALL selected zones.
+    if len(interior_candidates) < total_required:
+        raise ValueError(
+            f"Only {len(interior_candidates)} grids are at least "
+            f"{min_boundary_distance} m from the city boundary, but "
+            f"{total_required} grids are required."
+        )
+
+    # Determine numberof clusters
     no_clusters = math.ceil(no_hazard_zones / hazard_cluster_size)
     no_clusters = min(no_clusters, no_hazard_zones)
 
-    # Find suitable interior cells for cluster centres
-    # Only consider cells that are reasonably far from the boundary.
-    interior_threshold = boundary_distance.quantile(0.40)
-
-    interior_candidates = [i for i in indices if boundary_distance.loc[i] >= interior_threshold]
-
-    # Option in case the grid is very small.
-    if len(interior_candidates) < no_clusters:
-        interior_candidates = indices.copy()
-
-    # Choose separated interior cluster centres
+    # Choose interior centers
     cluster_centres = []
 
-    # First centre: randomly choose from the interior.
-    first = random.choice(
-        interior_candidates
-    )
-
+    # First centre: randomly choose from valid interior grids
+    first = random.choice(interior_candidates)
     cluster_centres.append(first)
 
     while len(cluster_centres) < no_clusters:
-
         candidates = [
             i for i in interior_candidates
             if i not in cluster_centres
@@ -357,29 +362,31 @@ def autogenerate_selected_grids(no_hazard_zones, no_safety_zones, grid, hazard_c
         if not candidates:
             break
 
-        # Score each candidate according to:
-        # 1. Distance from existing clusters
+        # Score each candidate based on:
+        # 1. Distance from existing cluster centres
         # 2. Distance from boundary
         def centre_score(i):
+
             distance_from_clusters = min(
                 centroids.loc[i].distance(centroids.loc[c])
                 for c in cluster_centres
             )
+            interior_score = boundary_distance.loc[i]
 
-            interior_score = (boundary_distance.loc[i])
+            return (
+                0.9 * distance_from_clusters
+                + 0.1 * interior_score
+            )
 
-            return 0.5 * distance_from_clusters + 0.5 * interior_score
+        candidates.sort(key=centre_score, reverse=True)
 
-        candidates.sort(key=centre_score,reverse=True)
-        
-        # Some randomness while still favouring good interior locations.
-        pool_size = max(1, min(8, len(candidates)),)
-
-        centre = random.choice( candidates[:pool_size])
+        # Introduce some randomness while favouring good locations
+        pool_size = max(1, min(8, len(candidates)))
+        centre = random.choice(candidates[:pool_size])
         cluster_centres.append(centre)
 
+    # Determine size of each cluster
     base_size = no_hazard_zones // no_clusters
-
     remainder = no_hazard_zones % no_clusters
 
     cluster_sizes = []
@@ -394,69 +401,68 @@ def autogenerate_selected_grids(no_hazard_zones, no_safety_zones, grid, hazard_c
 
     # Grow hazard clusters
     hazard_indices = []
-    available = set(indices)
+
+    # Only grids sufficiently far from the boundary are available
+    available = set(interior_candidates)
 
     for centre, cluster_size in zip(cluster_centres, cluster_sizes):
-
         if cluster_size <= 0:
             continue
 
         candidates = list(available)
+        if not candidates:
+            break
 
-        # Distance from cluster centre.
+        # Distance from cluster centre
         distances = {
-            i: centroids.loc[i].distance(
-                centroids.loc[centre]
-            )
+            i: centroids.loc[i].distance(centroids.loc[centre])
             for i in candidates
         }
-
         candidates.sort(key=lambda i: distances[i])
 
         # Take nearby cells, but introduce randomness.
-        # For 5 cells, consider roughly the nearest 10 cells and randomly choose 5.
-        pool_size = min(
-            len(candidates),
-            max(cluster_size, 8),
-        )
-
+        pool_size = min(len(candidates), max(cluster_size, 8))
         pool = candidates[:pool_size]
 
-        selected = random.sample(pool, min(cluster_size,len(pool)))
+        selected = random.sample(pool, min(cluster_size, len(pool)))
 
         hazard_indices.extend(selected)
         available.difference_update(selected)
 
-    # SAFETY ZONES
+    # Safety zone
     safety_indices = []
+
+    # Only grids satisfying the boundary-distance requirement are considered for safety zones.
     candidates = list(available)
 
-    for _ in range( no_safety_zones):
+    for _ in range(no_safety_zones):
         if not candidates:
             break
 
         scores = []
-
         for i in candidates:
-            # Distance from nearest hazard.
-            distance_from_hazard = min(
-                centroids.loc[i].distance(centroids.loc[h])
-                for h in hazard_indices
-            )
+            # Distance from nearest hazard
+            if hazard_indices:
+                distance_from_hazard = min(
+                    centroids.loc[i].distance(centroids.loc[h])
+                    for h in hazard_indices
+                )
+            else:
+                distance_from_hazard = 0
 
-            # Distance from nearest safety zone.
+            # Distance from nearest safety zone
             if safety_indices:
                 distance_from_safety = min(
-                    centroids.loc[i].distance(centroids.loc[s])
+                    centroids.loc[i].distance(centroids.loc[s]) 
                     for s in safety_indices
                 )
-
             else:
                 distance_from_safety = 0
 
-            # Distance from city boundary.
-            interior = (boundary_distance.loc[i])
+            # Distance from city boundary
+            interior = boundary_distance.loc[i]
 
+            # Combine score
             score = (
                 0.2 * distance_from_hazard
                 + 0.60 * distance_from_safety
@@ -467,13 +473,26 @@ def autogenerate_selected_grids(no_hazard_zones, no_safety_zones, grid, hazard_c
 
         scores.sort(key=lambda x: x[1], reverse=True)
 
-        # Randomly choose from the best candidates.
-        pool_size = max(1, min(8, len(scores)))
-
+        # Randomly choose from the best candidates
+        pool_size = max( 1, min(8, len(scores)))
         chosen = random.choice(scores[:pool_size])[0]
 
         safety_indices.append(chosen)
         candidates.remove(chosen)
+
+    # Final validation
+    selected_indices = (hazard_indices + safety_indices)
+
+    # Make sure no selected grid violates the boundary-distance requirement.
+    invalid_indices = [
+        i for i in selected_indices
+        if boundary_distance.loc[i] < min_boundary_distance
+    ]
+
+    if invalid_indices:
+        raise ValueError(
+            "Some selected grids are too close to the city boundary. Regenerate grid."
+            )
 
     # Save grid IDs
     st.session_state.selected_hazard_grids = (grid.loc[hazard_indices, "grid_id"].tolist())
