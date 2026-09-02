@@ -30,8 +30,24 @@ if st.session_state.page == "home":
     st.subheader("Welcome to SafeSMS")
     
     if st.button("---→", type='primary', key='b1'):
-        st.session_state.page = "prep"
+        st.session_state.page = "instruct"
         st.rerun()
+
+# --- INSTRUCTIONS PAGE ---
+if st.session_state.page == "instruct":
+    st.subheader("How to use SafeSMS")
+        
+    st.write("")
+    prev_col, next_col = st.columns([4, 1])
+
+    with prev_col:
+        if st.button("←----", type='secondary', key='b2'):
+            st.session_state.page = "home"
+            st.rerun()
+    with next_col:       
+        if st.button("---→", type='primary', key='b3'):
+            st.session_state.page = "prep"
+            st.rerun()
         
 # --- OFFLINE PREPARATION ---
 if st.session_state.page == "prep":
@@ -64,12 +80,12 @@ if st.session_state.page == "prep":
             prev_col, next_col = st.columns([4, 1])
 
             with prev_col:
-                if st.button("←----", type='secondary', key='b2'):
-                    st.session_state.page = "home"
+                if st.button("←----", type='secondary', key='b4'):
+                    st.session_state.page = "instruct"
                     st.rerun()
                     
             with next_col:
-                if st.button("---→", type='primary', key='b3'):
+                if st.button("---→", type='primary', key='b5'):
                     st.session_state.page = "sender"
                     st.rerun()
 
@@ -235,9 +251,10 @@ if st.session_state.page == "receiver":
                     "Transport mode",
                     options=option_map.keys(),
                     format_func=lambda option: option_map[option],
-                    default=0,
+                    default=st.session_state.transport_mode,
                     label_visibility="collapsed",
                     width="stretch",
+                    key='tm'
                 )
 
             if selected_transport_mode is not None:
@@ -271,7 +288,7 @@ if st.session_state.page == "receiver":
 
             prev_col, route_col = st.columns(2)
             with prev_col:
-                if st.button("←----", type='secondary'):
+                if st.button("←----", type='secondary', key='b6'):
                     st.session_state.page = "sender"
                     st.rerun()
             
@@ -304,25 +321,26 @@ if st.session_state.page == "receiver":
                         st.session_state.transport_mode,
                     )
 
-                with route_popover:
-                    with st.popover("Route details"):
-                        st.markdown("#### Route details")
+                if route_result["recommended_route"] is not None:
+                    with route_popover:
+                        with st.popover("Route details"):
+                            st.markdown("#### Route details")
 
-                        for i, (_, row) in enumerate(
-                            route_result["recommended_route"].iterrows(),
-                            start=1
-                        ):
-                            street = row["street_name"]
-                            length = row["length"]
+                            for i, (_, row) in enumerate(
+                                route_result["recommended_route"].iterrows(),
+                                start=1
+                            ):
+                                street = row["street_name"]
+                                length = row["length"]
 
-                            if length >= 1000:
-                                length_text = f"{length / 1000:.1f} km"
-                            else:
-                                length_text = f"{length:.0f} m"
+                                if length >= 1000:
+                                    length_text = f"{length / 1000:.1f} km"
+                                else:
+                                    length_text = f"{length:.0f} m"
 
-                            st.markdown(
-                                f"**{i}. {street}**  \n{length_text}"
-                            )
+                                st.markdown(
+                                    f"**{i}. {street}**  \n{length_text}"
+                                )
 
                 
                 if route_result["closest_safety_grid"] is not None:
@@ -378,25 +396,3 @@ if st.session_state.page == "receiver":
                     value=rt.format_time(display_route, st.session_state.transport_mode),
                     border=True, height=100
                 )
-
-                # metric_cols = st.columns(2)
-                # metric_cols[0].metric(
-                #     "Shortest route",
-                #     "N/A" if shortest_length is None else f"{shortest_length / 1000:.2f} km",
-                #     border=True,
-                # )
-                # metric_cols[1].metric(
-                #     "Recommended route",
-                #     "N/A" if recommended_length is None else f"{recommended_length / 1000:.2f} km",
-                #     border=True,
-                # )
-
-            hazard_grid = rt.get_selected_grids(city_map.grid, receiver_hazard_grids)
-            
-            affected_area = hazard_grid["area_ha"].sum() * 0.01 if not hazard_grid.empty else 0
-            affected_area_metric.metric(
-                label="AFFECTED AREA",
-                value=f"{affected_area:.1f} sqkm",
-                border=True, height=100
-            )
-            
