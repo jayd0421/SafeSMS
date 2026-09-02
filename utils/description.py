@@ -151,14 +151,14 @@ RECIPIENT_GUIDE = """
 </div>
 """
 
-# SENDER_SCREENSHOT_PLACEHOLDER = """
-# <div class="safesms-shot-placeholder">
-#     Sender page screenshot will appear here.
-# </div>
-# """
+SENDER_SCREENSHOT_PLACEHOLDER = """
+<div class="safesms-shot-placeholder">
+    Sender page screenshot will appear here.
+</div>
+"""
 
-# RECIPIENT_SCREENSHOT_PLACEHOLDER = """
-# <div class="safesms-shot-placeholder">
-#     Recipient page screenshot will appear here.
-# </div>
-# """
+RECIPIENT_SCREENSHOT_PLACEHOLDER = """
+<div class="safesms-shot-placeholder">
+    Recipient page screenshot will appear here.
+</div>
+"""

@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import streamlit as st
 
 import utils.mapping as mp
@@ -5,6 +7,18 @@ import utils.description as desc
 import utils.routing as rt
 import utils.sms_code as cd
 import utils.vector as v
+
+
+BASE_DIR = Path(__file__).resolve().parent
+SENDER_SCREENSHOT = BASE_DIR / "data" / "sender.png"
+RECIPIENT_SCREENSHOT = BASE_DIR / "data" / "reciever.png"
+
+
+def show_optional_image(image_path, fallback_html, caption=None):
+    if image_path.exists():
+        st.image(str(image_path), caption=caption, use_container_width=True)
+    else:
+        st.markdown(fallback_html, unsafe_allow_html=True)
 
 
 st.set_page_config(page_title="Safe SMS",layout="wide")
@@ -62,12 +76,20 @@ if st.session_state.page == "instruct":
     with sender_col:
         st.markdown("### Dispatcher / Sender")
         st.markdown(desc.SENDER_GUIDE, unsafe_allow_html=True)
-        st.image(r"data\sender.png")
+        show_optional_image(
+            SENDER_SCREENSHOT,
+            desc.SENDER_SCREENSHOT_PLACEHOLDER,
+            "Dispatcher / sender workflow screenshot.",
+        )
 
     with recipient_col:
         st.markdown("### Person at Risk / Recipient")
         st.markdown(desc.RECIPIENT_GUIDE, unsafe_allow_html=True)
-        st.image(r"data\reciever.png")
+        show_optional_image(
+            RECIPIENT_SCREENSHOT,
+            desc.RECIPIENT_SCREENSHOT_PLACEHOLDER,
+            "Recipient workflow screenshot.",
+        )
         
     st.write("")
     prev_col, next_col = st.columns([13, 1])
