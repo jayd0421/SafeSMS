@@ -5,68 +5,14 @@ import streamlit as st
 import utils.mapping as mp
 import utils.description as desc
 import utils.routing as rt
-import utils.sms_code as cd
+import utils.sms_coder as cd
 import utils.vector as v
+import utils.offline as off
 
 
 BASE_DIR = Path(__file__).resolve().parent
 SENDER_SCREENSHOT = BASE_DIR / "data" / "sender.png"
 RECIPIENT_SCREENSHOT = BASE_DIR / "data" / "reciever.png"
-
-
-def show_optional_image(image_path, fallback_html, caption=None):
-    if image_path.exists():
-        st.image(str(image_path), caption=caption, use_container_width=True)
-    else:
-        st.markdown(fallback_html, unsafe_allow_html=True)
-
-
-def is_offline_simulation():
-    return st.session_state.app_mode == "Offline simulation"
-
-
-def offline_config_key(city, grid_size):
-    return f"{city}|{grid_size}"
-
-
-def reset_offline_preparation():
-    st.session_state.offline_layers_prepared = False
-    st.session_state.offline_prepared_config = None
-    st.session_state.offline_layer_status = {
-        "City boundary": False,
-        "Grid system": False,
-        "Road network": False,
-        "Basemap / tiles": False,
-    }
-
-
-def prepare_offline_layers(city, grid_size):
-    boundary, grid = v.get_city_grid(city, grid_size)
-    road_network = v.get_city_road_network(city)
-
-    st.session_state.offline_layer_status = {
-        "City boundary": not boundary.empty,
-        "Grid system": not grid.empty,
-        "Road network": not road_network.empty,
-        "Basemap / tiles": True,
-    }
-    st.session_state.offline_layers_prepared = all(
-        st.session_state.offline_layer_status.values()
-    )
-    st.session_state.offline_prepared_config = offline_config_key(city, grid_size)
-
-
-def render_layer_status():
-    for label, ready in st.session_state.offline_layer_status.items():
-        state = "ready" if ready else "pending"
-        st.markdown(f"- **{label}:** {state}")
-
-
-def render_mode_status():
-    if is_offline_simulation():
-        st.info("Offline simulation: using prepared local layers + SMS update.")
-    else:
-        st.info("Online demo mode: live map services may be used during the workflow.")
 
 
 st.set_page_config(page_title="Safe SMS",layout="wide")
@@ -93,6 +39,8 @@ DEFAULT_STATE = {
         "Road network": False,
         "Basemap / tiles": False,
     },
+    "autogenerate_hazard_count": 40,
+    "autogenerate_safety_count": 5,
 }
 
 for key, value in DEFAULT_STATE.items():
@@ -133,7 +81,7 @@ if st.session_state.page == "instruct":
     with sender_col:
         st.markdown("### Dispatcher / Sender")
         st.markdown(desc.SENDER_GUIDE, unsafe_allow_html=True)
-        show_optional_image(
+        off.show_optional_image(
             SENDER_SCREENSHOT,
             desc.SENDER_SCREENSHOT_PLACEHOLDER,
             "Dispatcher / sender workflow screenshot.",
@@ -142,7 +90,7 @@ if st.session_state.page == "instruct":
     with recipient_col:
         st.markdown("### Person at Risk / Recipient")
         st.markdown(desc.RECIPIENT_GUIDE, unsafe_allow_html=True)
-        show_optional_image(
+        off.show_optional_image(
             RECIPIENT_SCREENSHOT,
             desc.RECIPIENT_SCREENSHOT_PLACEHOLDER,
             "Recipient workflow screenshot.",
@@ -175,36 +123,37 @@ if st.session_state.page == "prep":
                 options=["Online demo", "Offline simulation"],
                 index=0 if st.session_state.app_mode == "Online demo" else 1,
                 horizontal=True,
-                help="Online demo uses the current Streamlit workflow. Offline simulation prepares layers first, then uses SMS updates in later pages.",
+                help="Online demo fetches layers on the internet as they are requested. Offline simulation prepares layers first, then uses SMS updates in later pages.",
             )
 
             if selected_app_mode != st.session_state.app_mode:
                 st.session_state.app_mode = selected_app_mode
-                reset_offline_preparation()
+                off.reset_offline_preparation()
             
-            boundary = v.get_city_boundaries(city)
+            # boundary = v.get_city_boundaries(city)
 
-            city_area_sqkm = boundary.to_crs("EPSG:3857").area.sum() / 10_000_000
+            # city_area_sqkm = boundary.to_crs("EPSG:3857").area.sum() / 10_000_000
 
-            city_grid_size = max(300, round(city_area_sqkm) * 25)
+            # city_grid_size = max(300, round(city_area_sqkm) * 25)
 
             grid_size = st.number_input(
                 "Grid Size",
                 min_value=300,
-                value=int(st.session_state.get("grid_size", city_grid_size)),
+                # value=int(st.session_state.get("grid_size", city_grid_size)),
+                value=375,
                 step=20,
             )
 
             st.session_state.grid_size = grid_size
 
-            current_config = offline_config_key(city, grid_size)
+            current_config = off.offline_config_key(city, grid_size)
             if (
                 st.session_state.offline_prepared_config is not None
                 and st.session_state.offline_prepared_config != current_config
             ):
-                reset_offline_preparation()
+                off.reset_offline_preparation()
 
-            if is_offline_simulation():
+            if off.is_offline_simulation():
                 st.info(
                     "Offline simulation prepares the layers that a future mobile app "
                     "would store locally before mobile data becomes unavailable."
@@ -212,19 +161,18 @@ if st.session_state.page == "prep":
 
                 if st.button("Prepare offline simulation layers", type="primary", width="stretch"):
                     with st.spinner("Preparing boundary, grid, road network, and simulated basemap context..."):
-                        prepare_offline_layers(city, grid_size)
+                        off.prepare_offline_layers(city, grid_size)
 
-                render_layer_status()
+                off.render_layer_status()
 
                 if st.session_state.offline_layers_prepared:
-                    st.success("Offline simulation layers are ready for the sender and recipient workflow.")
+                    st.success("Offline simulation layers are ready.")
                 else:
                     st.warning("Prepare the offline simulation layers before continuing.")
 
             else:
                 st.info(
-                    "Online demo mode keeps the current workflow and may use live map "
-                    "services while the app is running."
+                    "Online demo mode may use live map services while the app is running."
                 )
             
             st.write("")
@@ -236,7 +184,7 @@ if st.session_state.page == "prep":
                     st.rerun()
                     
             with next_col:
-                block_next = is_offline_simulation() and not st.session_state.offline_layers_prepared
+                block_next = off.is_offline_simulation() and not st.session_state.offline_layers_prepared
                 if st.button("---→", type='primary', key='b5', disabled=block_next):
                     st.session_state.page = "sender"
                     st.rerun()
@@ -253,13 +201,14 @@ if st.session_state.page == "prep":
 
 # --- SENDER ---
 if st.session_state.page == "sender":
-    st.subheader('Dispatcher: Hazard & Safety Zone Selection')
+    subheader_col, mode_col = st.columns([5, 1])
+    subheader_col.subheader('Dispatcher: Hazard & Safety Zone Selection')
+    with mode_col:
+        off.render_mode_status()
     input_col, map_col = st.columns([2, 5])
 
     with input_col:
         with st.container(border=True, height = 600):
-            render_mode_status()
-
             city = st.session_state.city
             
             st.code(city, language="python", height=45)
@@ -290,18 +239,37 @@ if st.session_state.page == "sender":
 
                 with no_hazard_col:
                     no_hazard_grids = st.number_input(
-                        "# Hazard Grids", min_value=4, value=40, step=2,
+                        "# Hazard Grids",
+                        min_value=4,
+                        value=st.session_state.autogenerate_hazard_count,
+                        step=2,
                     )
+                    st.session_state.autogenerate_hazard_count = no_hazard_grids
 
                 with no_safety_col:
                     no_safety_grids = st.number_input(
-                        "# Safety Grids", min_value=2, value=5, step=2,
+                        "# Safety Grids",
+                        min_value=2,
+                        value=st.session_state.autogenerate_safety_count,
+                        step=2,
                     )
+                    st.session_state.autogenerate_safety_count = no_safety_grids
 
                 with submit_col:
                     st.write("")
                     st.write("")
-                    generate_grids = st.button("Generate", type="primary", width="stretch")
+                    if st.button("Generate", type="primary", width="stretch", key="generate_grids"):
+                        try:
+                            _, grid = v.get_city_grid(city, grid_size)
+                            mp.autogenerate_selected_grids(
+                                st.session_state.autogenerate_hazard_count,
+                                st.session_state.autogenerate_safety_count,
+                                grid,
+                            )
+                            st.session_state.last_selected_grid = None
+                            st.rerun()
+                        except ValueError as exc:
+                            st.error(str(exc))
                     
 
             # st.divider()
@@ -348,24 +316,18 @@ if st.session_state.page == "sender":
             
             if grid_selection_mode == "User defined":
                 mp.process_grid_click(map_data, grid_type)
-                
-            else:
-                grid = city_map.get_city_grid()
-                if generate_grids:
-                    st.write("Yess")
-                    with st.spinner("Generating Hazard and Safety grids..."):
-                        mp.autogenerate_selected_grids(no_hazard_grids, no_safety_grids, grid)
-                        st.rerun()
     
 # --- RECEIVER ---
 if st.session_state.page == "receiver":
-    st.subheader('Person at Risk: Navigation to Safety')
+    subheader_col, mode_col = st.columns([5, 1])
+    subheader_col.subheader('Person at Risk: Navigation to Safety')
+    with mode_col:
+        off.render_mode_status()
+        
     input_col, map_col = st.columns([3, 6])
 
     with input_col:
         with st.container(border=True, height=600):
-            render_mode_status()
-
             st.code(st.session_state.city, language="python", height=45)
 
             sms_payload = st.text_area("Paste SMS Code", value=None, height=120)
