@@ -1,6 +1,7 @@
 import streamlit as st
 
 import utils.mapping as mp
+import utils.description as desc
 import utils.routing as rt
 import utils.sms_code as cd
 import utils.vector as v
@@ -9,6 +10,8 @@ import utils.vector as v
 st.set_page_config(page_title="Safe SMS",layout="wide")
 
 st.title("Safe SMS")
+
+st.markdown(desc.PAGE_STYLES, unsafe_allow_html=True)
 
 # --- Session state defaults ---
 DEFAULT_STATE = {
@@ -27,18 +30,47 @@ for key, value in DEFAULT_STATE.items():
 
 # --- HOME PAGE ---
 if st.session_state.page == "home":
-    st.subheader("Welcome to SafeSMS")
+    st.subheader("Why SafeSMS?")
+
+    st.markdown(desc.HOME_INTRO, unsafe_allow_html=True)
+    story_col, image_col = st.columns([3, 2], vertical_alignment="center")
+    with story_col:
+        st.markdown(desc.HOME_STORY_PRIMARY, unsafe_allow_html=True)
+
+    with image_col:
+        st.image(
+            desc.EMERGENCY_IMAGE_URL,
+            caption=desc.EMERGENCY_IMAGE_CAPTION,
+            use_container_width=True,
+            link=desc.EMERGENCY_IMAGE_SOURCE_URL,
+        )
     
-    if st.button("---→", type='primary', key='b1'):
+    st.markdown(desc.HOME_STORY_SECONDARY, unsafe_allow_html=True)
+    
+    if st.button("Next Page   ---→", type='primary', key='b1'):
         st.session_state.page = "instruct"
         st.rerun()
 
 # --- INSTRUCTIONS PAGE ---
 if st.session_state.page == "instruct":
     st.subheader("How to use SafeSMS")
+
+    st.markdown(desc.INSTRUCTIONS_INTRO, unsafe_allow_html=True)
+
+    sender_col, recipient_col = st.columns(2)
+
+    with sender_col:
+        st.markdown("### Dispatcher / Sender")
+        st.markdown(desc.SENDER_GUIDE, unsafe_allow_html=True)
+        st.image(r"data\sender.png")
+
+    with recipient_col:
+        st.markdown("### Person at Risk / Recipient")
+        st.markdown(desc.RECIPIENT_GUIDE, unsafe_allow_html=True)
+        st.image(r"data\reciever.png")
         
     st.write("")
-    prev_col, next_col = st.columns([4, 1])
+    prev_col, next_col = st.columns([13, 1])
 
     with prev_col:
         if st.button("←----", type='secondary', key='b2'):
@@ -101,7 +133,7 @@ if st.session_state.page == "prep":
 
 # --- SENDER ---
 if st.session_state.page == "sender":
-    st.subheader('Hazard & Safety Zone Selection')
+    st.subheader('Dispatcher: Hazard & Safety Zone Selection')
     input_col, map_col = st.columns([2, 5])
 
     with input_col:
@@ -205,7 +237,7 @@ if st.session_state.page == "sender":
     
 # --- RECEIVER ---
 if st.session_state.page == "receiver":
-    st.subheader('Navigation to Safety')
+    st.subheader('Person at Risk: Navigation to Safety')
     input_col, map_col = st.columns([3, 6])
 
     with input_col:
