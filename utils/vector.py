@@ -10,10 +10,40 @@ from shapely.geometry import Polygon
 
 @st.cache_data(show_spinner=False)
 def get_city_boundaries(city: str):
+    """Function to get city boundary geometry
+
+    This function geocodes a city or place name with OSMnx and returns the
+    matching boundary geometry as a GeoDataFrame.
+
+    Parameters
+    ----------
+    city : str
+        The city or place name to geocode.
+
+    Returns
+    -------
+    geopandas.GeoDataFrame
+        The boundary geometry returned by OSMnx.
+    """
     return ox.geocoder.geocode_to_gdf(city)
 
 @st.cache_data(show_spinner=False)
 def get_city_road_network(city: str):
+    """Function to get city road network edges
+
+    This function downloads an OSM road graph for a city and converts the graph
+    edges to a GeoDataFrame for preparation checks and map workflows.
+
+    Parameters
+    ----------
+    city : str
+        The city or place name used to request the road network.
+
+    Returns
+    -------
+    geopandas.GeoDataFrame
+        The road-network edge geometries and OSM attributes.
+    """
     graph = ox.graph.graph_from_place(city)
     _, edges = ox.graph_to_gdfs(graph)
 
@@ -21,8 +51,20 @@ def get_city_road_network(city: str):
 
 
 def reassign_grid_id(grid_gdf: gpd.GeoDataFrame,):
-    """
-    Assign deterministic grid IDs from top-left to bottom-right.
+    """Function to assign deterministic grid IDs
+
+    This function sorts grid cells from top-left to bottom-right and assigns
+    sequential grid IDs for consistent SMS encoding and decoding.
+
+    Parameters
+    ----------
+    grid_gdf : geopandas.GeoDataFrame
+        The grid cells that should receive deterministic IDs.
+
+    Returns
+    -------
+    geopandas.GeoDataFrame
+        A copy of the input grid with a ``grid_id`` column.
     """
 
     grid = grid_gdf.copy()
@@ -51,16 +93,30 @@ def reassign_grid_id(grid_gdf: gpd.GeoDataFrame,):
     return grid
 
 def create_hex_grid(gdf = None, bounds = None, hex_size = 400, overlap = True, crs = "EPSG:3857"):
-    """
-    Create a regular hexagonal grid.
+    """Function to create a regular hexagonal grid
+
+    This function creates hexagonal cells over an input geometry or bounding
+    box and optionally keeps only cells that intersect the source geometry.
 
     Parameters
     ----------
-    gdf: Input GeoDataFrame used to determine the extent.
-    bounds: Tuple of (xmin, ymin, xmax, ymax), used if gdf is None.
-    hex_size: Side length of each hexagon in projected CRS units.
-    overlap: If True, keep hexagons intersecting the input geometry.
-    crs: Projected CRS used for generating the grid.
+    gdf : geopandas.GeoDataFrame, optional
+        The input geometry used to determine the grid extent.
+    bounds : tuple, optional
+        The bounding box as ``(xmin, ymin, xmax, ymax)`` when no GeoDataFrame is
+        provided.
+    hex_size : int or float, optional
+        The side length of each hexagon in projected CRS units.
+    overlap : bool, optional
+        Whether to keep only hexagons that intersect the input geometry.
+    crs : str, optional
+        The projected CRS used while generating the grid.
+
+    Returns
+    -------
+    geopandas.GeoDataFrame
+        The generated hexagonal grid in EPSG:4326 with ``grid_id`` and
+        ``area_ha`` columns.
     """
 
     if gdf is None and bounds is None:
@@ -146,6 +202,23 @@ def create_hex_grid(gdf = None, bounds = None, hex_size = 400, overlap = True, c
 
 @st.cache_data(show_spinner=False)
 def get_city_grid(city: str, grid_size: float):
+    """Function to get a city boundary and grid
+
+    This function loads a city boundary and creates a hexagonal grid over that
+    boundary using the requested grid size.
+
+    Parameters
+    ----------
+    city : str
+        The city or place name used to get the boundary.
+    grid_size : int or float
+        The side length used for the hexagonal grid.
+
+    Returns
+    -------
+    tuple
+        A tuple containing the boundary GeoDataFrame and the grid GeoDataFrame.
+    """
     boundary = get_city_boundaries(city)
     
     grid = create_hex_grid(
@@ -155,6 +228,27 @@ def get_city_grid(city: str, grid_size: float):
     return boundary, grid
 
 def style_function(feature, selected_hazard_grids=None, selected_safety_grids=None, show_background=True):
+    """Function to style a grid feature
+
+    This function returns Folium-compatible style properties for hazard,
+    safety, background, and hidden grid cells.
+
+    Parameters
+    ----------
+    feature : dict
+        The GeoJSON feature being styled.
+    selected_hazard_grids : list, optional
+        Grid IDs that should be styled as hazard zones.
+    selected_safety_grids : list, optional
+        Grid IDs that should be styled as safety zones.
+    show_background : bool, optional
+        Whether non-selected grid cells should remain visible.
+
+    Returns
+    -------
+    dict
+        A Folium style dictionary for the grid feature.
+    """
     hazard_grids = set(selected_hazard_grids or [])
     safety_grids = set(selected_safety_grids or [])
 
