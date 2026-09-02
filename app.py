@@ -1,9 +1,9 @@
 import streamlit as st
 
-import mapping as mp
-import routing as rt
-import sms_code as cd
-import vector as v
+import utils.mapping as mp
+import utils.routing as rt
+import utils.sms_code as cd
+import utils.vector as v
 
 
 st.set_page_config(page_title="Safe SMS",layout="wide")

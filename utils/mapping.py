@@ -8,7 +8,7 @@ import math
 from branca.element import MacroElement, Template
 from streamlit_folium import st_folium
 
-import vector as v
+import utils.vector as v
 
 class City:
     def __init__(self, city, grid_size, key):
