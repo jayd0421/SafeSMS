@@ -33,9 +33,10 @@ def highway_allowed(value, transport_mode):
 
 def filter_graph_by_highway(graph, transport_mode):
     filtered_graph = graph.copy()
-    edges_to_remove = [(u, v, key) for u, v, key, data in filtered_graph.edges(keys=True, data=True) 
-                       if not highway_allowed(data.get("highway"), transport_mode)
-                    ]
+    edges_to_remove = [
+        (u, v, key) for u, v, key, data in filtered_graph.edges(keys=True, data=True) 
+        if not highway_allowed(data.get("highway"), transport_mode)
+    ]
 
     filtered_graph.remove_edges_from(edges_to_remove)
     filtered_graph.remove_nodes_from(list(nx.isolates(filtered_graph)))
@@ -159,11 +160,7 @@ def merge_geometries(geometries):
 
 
 def build_routes(city, grid, hazard_grid_ids, safety_grid_ids, user_location, transport_mode):
-    closest_safety = find_closest_safety_grid(
-        grid,
-        safety_grid_ids,
-        user_location,
-    )
+    closest_safety = find_closest_safety_grid(grid, safety_grid_ids, user_location)
 
     if closest_safety is None:
         return {
