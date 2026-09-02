@@ -101,8 +101,10 @@ def create_hex_grid(gdf = None, bounds = None, hex_size = 400, overlap = True, c
         while y < ymax:
             hexagon = Polygon(
                 [
-                (x - s, y), (x - s / 2),
-                (x + s / 2), (x + s, y),
+                (x - s, y), 
+                (x - s / 2, y + dy / 2),
+                (x + s / 2, y + dy / 2),
+                (x + s, y),
                 (x + s / 2, y - dy / 2),
                 (x - s / 2, y - dy / 2),
                 ]
