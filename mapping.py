@@ -11,12 +11,12 @@ from streamlit_folium import st_folium
 import vector as v
 
 class City:
-    def __init__( self, city, grid_size, key):
+    def __init__(self, city, grid_size, key):
         self.name = city
         self.key = key
 
         with st.spinner("Getting city data..."):
-            self.boundary, self.grid = v.get_city_grid(city,grid_size,)
+            self.boundary, self.grid = v.get_city_grid(city, grid_size)
 
         self.minx, self.miny, self.maxx, self.maxy = self.boundary.total_bounds
 
