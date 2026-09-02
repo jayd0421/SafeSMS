@@ -280,10 +280,11 @@ if st.session_state.page == "receiver":
             )
 
             _, grids = v.get_city_grid(st.session_state.city, st.session_state.grid_size)
-            grids_area_sqkm = grids.head(1).to_crs("EPSG:3857").area.sum() / 10_000
+            hazard_grid = rt.get_selected_grids(grids, receiver_hazard_grids)
+            affected_area_sqkm = hazard_grid["area_ha"].sum() * 0.01
             
             affected_area_metric.metric(
-                label="AFFECTED AREA", value=f"{round(grids_area_sqkm, 2)} ha", 
+                label="AFFECTED AREA", value=affected_area_sqkm, 
                 border=True, height=100)
 
             prev_col, route_col = st.columns(2)
