@@ -6,7 +6,7 @@ def encode_sms():
     
     sms_code = f"FLOODING ALERT!! \nH:{hazard_ids}\nS:{safety_ids}"
     
-    st.code(sms_code, language="python")
+    st.code(sms_code, language="python", height=65)
 
 
 def decode_sms(sms_code):
