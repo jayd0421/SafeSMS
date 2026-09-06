@@ -6,7 +6,7 @@ The core idea is simple: prepare the heavy map data ahead of time, then send onl
 
 ![SafeSMS sender page](data/sender.png)
 
-## Why It Matters
+## Main Idea
 
 During floods, wildfires, storms, landslides, conflict situations, and other emergencies, people often need very local information: which roads are blocked, which areas are unsafe, and where they can move to safety.
 
