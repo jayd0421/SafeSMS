@@ -21,7 +21,7 @@ SafeSMS is a prototype for a possible mobile app where essential layers are down
 
 When an emergency happens, a dispatcher or trusted local authority can send only the latest grid IDs for affected and safe areas. The recipient pastes that code into the app, selects their location and transport mode, and receives a recommended route toward safety.
 
-## Main Idea
+## Overview
 
 SafeSMS has two main roles.
 
