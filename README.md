@@ -122,6 +122,7 @@ The screenshot assets in `data/` are referenced with paths resolved from `app.py
 - NetworkX Shortest Path Documentation - [Link](https://networkx.org/documentation/stable/reference/algorithms/shortest_paths.html)
 - Shortest Path Road Network Example - [Link](https://colab.research.google.com/github/mobook/MO-book/blob/main/notebooks/04/09-shortest-path-road-networks.ipynb#scrollTo=ZjGPTLE1T4gz)
 - OpenStreetMap Tiles and Attribution - [Link](https://www.openstreetmap.org/copyright)
+- Caching data with Streamlit - [Link](https://docs.streamlit.io/develop/api-reference/caching-and-state)
 
 ## Status
 
