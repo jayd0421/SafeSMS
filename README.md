@@ -83,8 +83,9 @@ SafeSMS_test/
 |-- utils/
 |   |-- description.py
 |   |-- mapping.py
+|   |-- offline.py
 |   |-- routing.py
-|   |-- sms_code.py
+|   |-- sms_coder.py
 |   `-- vector.py
 |-- requirements.txt
 `-- README.md
@@ -109,6 +110,18 @@ streamlit run app.py
 This project is designed to deploy on Streamlit Cloud using `requirements.txt`.
 
 The screenshot assets in `data/` are referenced with paths resolved from `app.py`, so they work across Windows local development and Linux-based cloud deployment.
+
+## References
+
+- OSM Data Retrieval - [Link](https://pythongis.org/part2/chapter-09/nb/00-retrieving-osm-data.html)
+- Grid Generation - [Link](https://dmnfarrell.github.io/plotting/geopandas-grids)
+- Fast Gridding with GeoPandas - [Link](https://james-brennan.github.io/posts/fast_gridding_geopandas/)
+- Hexagonal Cartogram - [Link](https://sabrinadchan.github.io/data-blog/building-a-hexagonal-cartogram.html)
+- Salzburg UTM EPSG Reference - [Link](https://de.wikipedia.org/wiki/%C3%96sterreichisches_Bundesmeldenetz)
+- OSMnx Nearest Node - [Link](https://www.geeksforgeeks.org/python/find-the-nearest-node-to-a-point-using-osmnx-distance-module/)
+- NetworkX Shortest Path Documentation - [Link](https://networkx.org/documentation/stable/reference/algorithms/shortest_paths.html)
+- Shortest Path Road Network Example - [Link](https://colab.research.google.com/github/mobook/MO-book/blob/main/notebooks/04/09-shortest-path-road-networks.ipynb#scrollTo=ZjGPTLE1T4gz)
+- OpenStreetMap Tiles and Attribution - [Link](https://www.openstreetmap.org/copyright)
 
 ## Status
 
